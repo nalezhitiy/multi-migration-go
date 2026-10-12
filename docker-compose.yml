@@ -1,0 +1,83 @@
+services:
+  migrations:
+    build:
+      context: .
+      dockerfile: Dockerfile
+      target: dev
+      args:
+        USER_NAME: app-data
+        USER_UID: ${RUN_AS_USER:-1000}
+    volumes:
+      - ./src:/app
+    env_file: ./.env
+    environment:
+      TZ: UTC
+      GOPATH: /go
+      GOCACHE: /go-cache
+    entrypoint: ["go", "run", "."]
+    depends_on:
+      postgresql:
+        condition: service_healthy
+      mariadb:
+        condition: service_healthy
+      clickhouse:
+        condition: service_healthy
+
+  postgresql:
+    image: postgres:17-alpine
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB:-app}
+      POSTGRES_USER: ${POSTGRES_USER:-app}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-dev_postgres_password}
+      TZ: UTC
+    ports:
+      - "5462:5432"
+    volumes:
+      - postgresql_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U \"$${POSTGRES_USER}\" -d \"$${POSTGRES_DB}\""]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
+  mariadb:
+    image: mariadb:11.4
+    environment:
+      MARIADB_DATABASE: ${MARIADB_DATABASE:-app}
+      MARIADB_USER: ${MARIADB_USER:-app}
+      MARIADB_PASSWORD: ${MARIADB_PASSWORD:-dev_mariadb_password}
+      MARIADB_ROOT_PASSWORD: ${MARIADB_ROOT_PASSWORD:-dev_mariadb_root_password}
+      TZ: UTC
+    ports:
+      - "3366:3306"
+    volumes:
+      - mariadb_data:/var/lib/mysql
+    healthcheck:
+      test: ["CMD", "healthcheck.sh", "--connect", "--innodb_initialized"]
+      interval: 5s
+      timeout: 3s
+      retries: 15
+
+  clickhouse:
+    image: clickhouse/clickhouse-server:25.8
+    environment:
+      CLICKHOUSE_DB: ${CLICKHOUSE_DB:-app}
+      CLICKHOUSE_USER: ${CLICKHOUSE_USER:-app}
+      CLICKHOUSE_PASSWORD: ${CLICKHOUSE_PASSWORD:-dev_clickhouse_password}
+      CLICKHOUSE_DEFAULT_ACCESS_MANAGEMENT: "1"
+      TZ: UTC
+    ports:
+      - "8123:8123"
+      - "9000:9000"
+    volumes:
+      - clickhouse_data:/var/lib/clickhouse
+    healthcheck:
+      test: ["CMD-SHELL", "clickhouse-client --user \"$${CLICKHOUSE_USER}\" --password \"$${CLICKHOUSE_PASSWORD}\" --query 'SELECT 1'"]
+      interval: 5s
+      timeout: 5s
+      retries: 15
+
+volumes:
+  postgresql_data:
+  mariadb_data:
+  clickhouse_data:

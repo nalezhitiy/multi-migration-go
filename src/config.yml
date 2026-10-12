@@ -1,0 +1,16 @@
+migrations:
+  dir_name: revisions
+  table_name: migrations_goose
+
+databases:
+  postgres-main:
+    dialect: postgres
+    dsn: ${APP_POSTGRES_DSN}
+
+  mariadb-main:
+    dialect: mysql
+    dsn: ${APP_MARIADB_DSN}
+
+  clickhouse-main:
+    dialect: clickhouse
+    dsn: ${APP_CLICKHOUSE_DSN}
